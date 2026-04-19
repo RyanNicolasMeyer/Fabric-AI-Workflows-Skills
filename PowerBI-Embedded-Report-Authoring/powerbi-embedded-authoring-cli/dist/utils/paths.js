@@ -1,0 +1,33 @@
+import path from "node:path";
+import { mkdir, cp } from "node:fs/promises";
+import { fileURLToPath } from "node:url";
+const PACKAGE_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
+export function getRuntimePaths(repoRoot) {
+    const outputRoot = path.join(repoRoot, "output", "embedded-authoring");
+    const runtimeRoot = path.join(outputRoot, "runtime");
+    const helperAssetRoot = path.join(PACKAGE_ROOT, "assets", "helper-app");
+    const runtimeHelperRoot = runtimeRoot;
+    return {
+        repoRoot,
+        packageRoot: PACKAGE_ROOT,
+        outputRoot,
+        runtimeRoot,
+        screenshotsRoot: path.join(outputRoot, "screenshots"),
+        exportsRoot: path.join(outputRoot, "exports"),
+        helperAssetRoot,
+        runtimeHelperRoot,
+        sessionConfigPath: path.join(runtimeRoot, "session-config.js")
+    };
+}
+export async function ensureRuntimeLayout(paths) {
+    await mkdir(paths.runtimeRoot, { recursive: true });
+    await mkdir(paths.screenshotsRoot, { recursive: true });
+    await mkdir(paths.exportsRoot, { recursive: true });
+}
+export async function syncHelperAssets(paths) {
+    await ensureRuntimeLayout(paths);
+    await cp(paths.helperAssetRoot, paths.runtimeHelperRoot, {
+        recursive: true,
+        force: true
+    });
+}

@@ -1,0 +1,60 @@
+{
+  "database": "ADLS Parquet Files",
+  "notes": "One Parquet file each for DimPlayers and DimMachines. FactPlays is written as separate Parquet files per PlayCalendarDate.",
+  "schema": [
+    {
+      "title": "DimPlayers",
+      "description": "Slowly Changing Dimension Type 2 for players.",
+      "file_layout": "single-file",
+      "fields": [
+        { "name": "PlayerKey", "datatype": "INT", "description": "Internal surrogate key used in the datamart; FactPlays joins to this." },
+        { "name": "PlayerIdNK", "datatype": "VARCHAR(12)", "description": "Player card ID from the operational system; represents one real person over time. This does not change when demographics change." },
+        { "name": "Gender", "datatype": "VARCHAR(20)", "description": "Gender recorded at enrollment; used for basic segmentation and comparisons." },
+        { "name": "Age", "datatype": "INT", "description": "Age in years at enrollment; useful for grouping players into age bands." },
+        { "name": "LoadTimestampUtc", "datatype": "DATETIME", "description": "When this version of the player row was loaded into the datamart; used for lineage and troubleshooting." },
+        { "name": "EffectiveStartDatetime", "datatype": "DATETIME", "description": "Point in time when this version of the player record became valid." },
+        { "name": "EffectiveEndDatetime", "datatype": "DATETIME", "description": "Point in time when this version stopped being valid (if current record it’s set to 2100-01-01)." },
+        { "name": "IsCurrent", "datatype": "BIT", "description": "1 if this is the current version of the player, 0 if it’s a historical version." }
+      ]
+    },
+    {
+      "title": "DimMachines",
+      "description": "Slowly Changing Dimension Type 2 for physical machines.",
+      "file_layout": "single-file",
+      "fields": [
+        { "name": "MachineKey", "datatype": "INT", "description": "Internal surrogate key; FactPlays joins to this to find the correct machine configuration." },
+        { "name": "SerialNumberNK", "datatype": "VARCHAR(20)", "description": "Business identifier for the physical cabinet (e.g., WFS-1234); does not change when settings change." },
+        { "name": "Denomination", "datatype": "DECIMAL(6,3)", "description": "Value of one credit on the machine in USD (e.g., $0.05 – Nickel, $0.25 – Quarter, $1.00 – Dollar)." },
+        { "name": "PayoutPercent", "datatype": "DECIMAL(4,2)", "description": "Long-term return-to-player (RTP) as a fraction (e.g., 0.90 ≈ 90%); lower values increase casino hold." },
+        { "name": "PositionId", "datatype": "INT", "description": "Identifier for the machine’s spot on the floor (ties back to the floorplan)." },
+        { "name": "BankId", "datatype": "INT", "description": "Identifier for the bank of machines this position belongs to." },
+        { "name": "DesirabilityTier", "datatype": "TINYINT", "description": "1–4 score for how desirable the position is, with 4 being the most desirable location based on management's estimates." },
+        { "name": "IsActive", "datatype": "BIT", "description": "1 if this machine configuration is currently in use on the floor, 0 if not. Entire machines may be removed from the floor over time due to damage or normal wear." },
+        { "name": "ThemeId", "datatype": "INT", "description": "Numeric identifier for the theme currently loaded on this machine." },
+        { "name": "ThemeName", "datatype": "VARCHAR(100)", "description": "Human-readable name of the theme; what players see on the cabinet." },
+        { "name": "ImageUrl", "datatype": "VARCHAR(2048)", "description": "URL to an image representing the theme, mainly for reporting." },
+        { "name": "LoadTimestampUtc", "datatype": "DATETIME", "description": "When this version of the machine row was loaded into the datamart." },
+        { "name": "EffectiveStartDatetime", "datatype": "DATETIME", "description": "When this configuration (denom, payout, theme, position, etc.) became valid." },
+        { "name": "EffectiveEndDatetime", "datatype": "DATETIME", "description": "When this configuration stopped being valid (e.g., after a move or re-theme)." },
+        { "name": "IsCurrent", "datatype": "BIT", "description": "1 if this row is the current machine configuration, 0 if it’s historical." }
+      ]
+    },
+    {
+      "title": "FactPlays",
+      "description": "Fact table at the atomic grain of a single pull/spin.",
+      "file_layout": "daily-partitioned by PlayCalendarDate",
+      "fields": [
+        { "name": "playIdNK", "datatype": "BIGINT", "description": "Unique identifier for each spin in the slot management system; ensures one row per spin." },
+        { "name": "PlayerKey", "datatype": "INT", "description": "Foreign key to DimPlayers; links the play to the player." },
+        { "name": "MachineKey", "datatype": "INT", "description": "Foreign key to DimMachines; links the play to the specific machine configuration at that moment." },
+        { "name": "PlayCalendarDate", "datatype": "DATE", "description": "Calendar date of the play; also the partition key and basis for day-level analysis. This is generally connected to a date dimension for reporting." },
+        { "name": "PlayTimeOfDay", "datatype": "TIME(0)", "description": "Time of day for the play; used to analyze hourly or intraday patterns." },
+        { "name": "BetCredits", "datatype": "INT", "description": "Number of credits wagered on that spin (e.g., 1–10); multiplied by Denomination to get money wagered." },
+        { "name": "BetAmount", "datatype": "DECIMAL(10,2)", "description": "Actual currency wagered on that spin (BetCredits × Denomination); usually what we mean by 'play' or 'coin-in' for that pull." },
+        { "name": "WinAmount", "datatype": "DECIMAL(10,2)", "description": "Amount of money returned to the player on that spin." },
+        { "name": "NetAmount", "datatype": "DECIMAL(10,2)", "description": "WinAmount − BetAmount; negative values are profit for the casino on that spin, positive values are loss." },
+        { "name": "LoadTimestampUtc", "datatype": "DATETIME", "description": "When this batch of plays (for a given date) was loaded into the datamart." }
+      ]
+    }
+  ]
+}

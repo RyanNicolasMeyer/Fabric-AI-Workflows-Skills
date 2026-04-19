@@ -1,0 +1,16 @@
+{
+  "database": "ADLS Parquet Files",
+  "notes": "Reviews is stored as a single Parquet file containing customer reviews of the WFS casino collected from various online review platforms.",
+  "schema": [
+    {
+      "title": "Reviews",
+      "description": "Standalone table containing free-text customer reviews of the World Famous Slots casino. They represent external customer feedback and may reference themes, staff members, shifts, and casino amenities by name. Reviews may be written in various languages.",
+      "file_layout": "single-file",
+      "fields": [
+        { "name": "review_id", "datatype": "INT", "description": "Unique identifier for each review." },
+        { "name": "review_text", "datatype": "STRING", "description": "Free-text body of the customer review. May reference slot themes, staff names, casino amenities, shifts (graveyard, swing), promotions (comps, free play bounce-back, branded mug giveaway, gift card drawing, mailers), and general impressions. Reviews appear in multiple languages." },
+        { "name": "review_date", "datatype": "TIMESTAMP", "description": "Date the review was posted." }
+      ]
+    }
+  ]
+}

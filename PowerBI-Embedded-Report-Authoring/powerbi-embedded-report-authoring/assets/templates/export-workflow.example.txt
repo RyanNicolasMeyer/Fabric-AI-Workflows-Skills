@@ -1,0 +1,1 @@
+powerbi-embedded-authoring-cli export-report --workspace-name "<workspace-name>" --report-name "<report-name>"

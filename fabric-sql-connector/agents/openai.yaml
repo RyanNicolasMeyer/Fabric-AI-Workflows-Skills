@@ -1,0 +1,4 @@
+interface:
+  display_name: "Fabric SQL Connector"
+  short_description: "Run Fabric SQL with cached Azure AD tokens"
+  default_prompt: "Connect to Microsoft Fabric SQL, list schemas, run SQL queries/files, and reuse cached Azure AD tokens with automatic refresh."

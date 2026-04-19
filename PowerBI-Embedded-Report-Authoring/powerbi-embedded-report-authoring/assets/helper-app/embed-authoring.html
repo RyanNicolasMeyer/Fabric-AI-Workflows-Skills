@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" href="data:,">
+  <title>Embedded Report Authoring</title>
+  <style>
+    :root {
+      --bg: #08111f;
+      --ink: #f5f7fb;
+      --muted: #a4b1c4;
+      --error: #f66b8a;
+    }
+
+    html, body {
+      margin: 0;
+      height: 100%;
+      background: radial-gradient(circle at top, #163154 0%, var(--bg) 55%);
+      color: var(--ink);
+      font-family: "Segoe UI", Arial, sans-serif;
+    }
+
+    body {
+      display: grid;
+      grid-template-rows: auto 1fr;
+    }
+
+    .shell {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      align-items: center;
+      padding: 12px 16px;
+      background: rgba(8, 17, 31, 0.82);
+      border-bottom: 1px solid rgba(164, 177, 196, 0.18);
+      backdrop-filter: blur(12px);
+    }
+
+    .meta {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .meta strong {
+      font-size: 15px;
+      letter-spacing: 0.02em;
+    }
+
+    .status-line {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .status-line[data-level="error"] {
+      color: var(--error);
+    }
+
+    #reportContainer {
+      height: 100%;
+      width: 100%;
+    }
+  </style>
+</head>
+<body data-mode="edit">
+  <header class="shell">
+    <div class="meta">
+      <strong id="reportName">Embedded authoring</strong>
+      <span id="statusLine" class="status-line">Booting authoring harness…</span>
+    </div>
+  </header>
+  <div id="reportContainer"></div>
+  <script src="/vendor/powerbi-client/powerbi.min.js"></script>
+  <script src="/vendor/powerbi-report-authoring/powerbi-report-authoring.js"></script>
+  <script src="/session-config.js"></script>
+  <script src="/shared/report-bootstrap.js"></script>
+</body>
+</html>
