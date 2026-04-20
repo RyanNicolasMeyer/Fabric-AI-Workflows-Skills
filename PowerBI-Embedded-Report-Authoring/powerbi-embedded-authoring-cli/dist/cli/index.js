@@ -1,8 +1,10 @@
 #!/usr/bin/env node
 import path from "node:path";
-import { DEFAULT_HOST, DEFAULT_PLAYWRIGHT_SESSION, DEFAULT_PORT } from "../contracts/session.js";
+import { DEFAULT_PLAYWRIGHT_SESSION, DEFAULT_HOST, DEFAULT_PORT } from "../contracts/session.js";
+import { applyStyle } from "../export/applyStyle.js";
 import { exportReportDefinition } from "../export/exportReport.js";
-import { captureArtifacts, openPlaywrightPage, runBuildScriptInSession } from "../playwright/cli.js";
+import { captureArtifacts, openEditPage, openViewPage, runBuildScriptInSession } from "../playwright/cli.js";
+import { formatProbeReport, probeCapabilities } from "../playwright/probe.js";
 import { startStaticHost } from "../server/serve.js";
 import { generateSessionConfig } from "../session/generateSession.js";
 import { getRuntimePaths, syncHelperAssets } from "../utils/paths.js";
@@ -47,7 +49,13 @@ Commands:
   run-build       Run a report build script in the active Playwright session
   open-view       Open the view-mode helper in headed Playwright
   capture         Capture view-mode screenshots and snapshots
+  probe           Probe visual capabilities (data roles, formatting objects) in the
+                  active session. Useful for discovering which setProperty calls
+                  will actually land in this SDK build.
   export-report   Export the live Fabric report definition locally
+  apply-style     Export the report, run a style transform against its PBIR, and
+                  re-import it. Use this for formatting that setProperty cannot
+                  reach (titles, backgrounds, dropdown slicer mode, etc.).
 
 Common options:
   --repo-root <path>      Target project root. Defaults to the current directory.
@@ -55,10 +63,26 @@ Common options:
   --port <port>           Helper port. Defaults to 8765.
   --session-name <name>   Playwright session name. Defaults to embedded-authoring.
 
+probe options:
+  --visuals <list>        Comma-separated visual type names to probe. Defaults to
+                          a built-in list of common types.
+  --json                  Emit the raw probe JSON instead of the formatted report.
+
+apply-style options:
+  --workspace-name <name> Fabric workspace name. Required.
+  --report-name <name>    Fabric report name. Required.
+  --style-file <path>     Path to a .js/.mjs/.cjs module exporting a style function,
+                          or a .json file with a visualPatches array. Required.
+  --skip-export           Skip the initial 'fab export' (use an existing on-disk copy).
+  --skip-import           Skip the final 'fab import' (leave patched PBIR on disk).
+
 Examples:
   powerbi-embedded-authoring-cli session --repo-root . --workspace-name "My Workspace" --report-name "My Report"
   powerbi-embedded-authoring-cli host --repo-root .
   powerbi-embedded-authoring-cli run-build --repo-root . --file ./examples/my-report.build.js
+  powerbi-embedded-authoring-cli probe --repo-root .
+  powerbi-embedded-authoring-cli apply-style --repo-root . --workspace-name "My Workspace" \\
+      --report-name "My Report" --style-file ./styles/executive.style.js
 `);
 }
 async function run() {
@@ -94,7 +118,7 @@ async function run() {
             return;
         }
         case "open-edit": {
-            await openPlaywrightPage(`http://${host}:${port}/embed-authoring.html`, repoRoot, sessionName);
+            await openEditPage(repoRoot, host, port, sessionName);
             return;
         }
         case "run-build": {
@@ -103,7 +127,7 @@ async function run() {
             return;
         }
         case "open-view": {
-            await openPlaywrightPage(`http://${host}:${port}/embed-view.html`, repoRoot, sessionName);
+            await openViewPage(repoRoot, host, port, sessionName);
             return;
         }
         case "capture": {
@@ -114,8 +138,36 @@ async function run() {
             await exportReportDefinition(paths, required(args, "workspace-name"), required(args, "report-name"));
             return;
         }
+        case "probe": {
+            const visualsArg = args.get("visuals");
+            const types = visualsArg
+                ? visualsArg
+                    .split(",")
+                    .map((entry) => entry.trim())
+                    .filter((entry) => entry.length > 0)
+                : null;
+            const report = await probeCapabilities(repoRoot, types, sessionName);
+            if (args.get("json") === "true") {
+                console.log(JSON.stringify(report, null, 2));
+            }
+            else {
+                console.log(formatProbeReport(report));
+            }
+            return;
+        }
+        case "apply-style": {
+            await applyStyle({
+                paths,
+                workspaceName: required(args, "workspace-name"),
+                reportName: required(args, "report-name"),
+                styleFilePath: required(args, "style-file"),
+                skipExport: args.get("skip-export") === "true",
+                skipImport: args.get("skip-import") === "true"
+            });
+            return;
+        }
         default:
-            throw new Error("Unknown command. Use one of: session, host, open-edit, run-build, open-view, capture, export-report");
+            throw new Error("Unknown command. Use one of: session, host, open-edit, run-build, open-view, capture, probe, export-report, apply-style");
     }
 }
 run().catch((error) => {

@@ -18,8 +18,8 @@
     "export-report": "tsx src/cli/index.ts export-report"
   },
   "devDependencies": {
-    "@playwright/cli": "0.1.7",
     "@types/node": "24.9.1",
+    "playwright": "1.60.0-alpha-1775951570000",
     "powerbi-client": "2.23.10",
     "powerbi-report-authoring": "3.0.0",
     "tsx": "4.20.6",

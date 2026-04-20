@@ -18,44 +18,12 @@ function contentTypeFor(filePath: string): string {
   return CONTENT_TYPES[extension] ?? "application/octet-stream";
 }
 
-function vendorCandidates(paths: RuntimePaths, requestPath: string): string[] {
-  if (requestPath === "/vendor/powerbi-client/powerbi.min.js") {
-    return [path.join(paths.repoRoot, "node_modules", "powerbi-client", "dist", "powerbi.min.js")];
-  }
-
-  if (requestPath === "/vendor/powerbi-report-authoring/powerbi-report-authoring.js") {
-    return [
-      path.join(
-        paths.repoRoot,
-        "node_modules",
-        "powerbi-report-authoring",
-        "dist",
-        "powerbi-report-authoring.js"
-      ),
-      path.join(
-        paths.repoRoot,
-        "node_modules",
-        "powerbi-report-authoring",
-        "dist",
-        "powerbi-report-authoring.min.js"
-      )
-    ];
-  }
-
-  return [];
-}
-
 async function resolveRequestPath(
   paths: RuntimePaths,
   requestPath: string
 ): Promise<string | null> {
   if (requestPath === "/") {
     return path.join(paths.runtimeRoot, "embed-authoring.html");
-  }
-
-  const vendorPath = vendorCandidates(paths, requestPath).find((candidate) => existsSync(candidate));
-  if (vendorPath) {
-    return vendorPath;
   }
 
   const sanitized = requestPath.replace(/^\/+/, "");
@@ -70,6 +38,24 @@ async function resolveRequestPath(
   }
 
   return candidate;
+}
+
+async function probeExistingHost(host: string, port: number): Promise<boolean> {
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 1500);
+    const response = await fetch(`http://${host}:${port}/embed-authoring.html`, {
+      signal: controller.signal
+    });
+    clearTimeout(timeout);
+    if (!response.ok) {
+      return false;
+    }
+    const body = await response.text();
+    return body.includes("REPORT_AUTHORING_SESSION") || body.includes("embed-authoring");
+  } catch {
+    return false;
+  }
 }
 
 export async function startStaticHost(
@@ -104,11 +90,31 @@ export async function startStaticHost(
     }
   });
 
-  await new Promise<void>((resolve, reject) => {
-    server.once("error", reject);
-    server.listen(port, host, () => {
-      console.log(`Embedded authoring host running at http://${host}:${port}`);
-      resolve();
+  try {
+    await new Promise<void>((resolve, reject) => {
+      server.once("error", reject);
+      server.listen(port, host, () => {
+        console.log(`Embedded authoring host running at http://${host}:${port}`);
+        resolve();
+      });
     });
-  });
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException | null)?.code;
+    if (code === "EADDRINUSE") {
+      const isOurs = await probeExistingHost(host, port);
+      if (isOurs) {
+        console.log(
+          `Reusing existing embedded authoring host at http://${host}:${port} ` +
+            `(another process is already serving the helper assets).`
+        );
+        return;
+      }
+      throw new Error(
+        `Port ${port} on ${host} is in use, and the responder does not look like the ` +
+          `embedded-authoring helper host. Stop whatever is listening on ${host}:${port} ` +
+          `(or pass --port <other>) and retry.`
+      );
+    }
+    throw error;
+  }
 }

@@ -30,6 +30,7 @@ This pattern is for **report authoring**, not semantic-model authoring.
 - Copy this skill folder into your assistant's skills location, library, or equivalent import path.
 - Keep the companion CLI package available alongside your work, or install it globally with npm.
 - Read [references/spec.md](./references/spec.md) for the full workflow before starting a new authoring loop.
+- Read [design.md](./design.md) before laying out a new dashboard page or revising an existing dashboard for polish.
 
 ## Companion runtime
 
@@ -63,10 +64,11 @@ powerbi-embedded-authoring-cli host --repo-root .
 
 1. Read [references/spec.md](./references/spec.md) for the full workflow and architecture.
 2. Read [references/contracts.md](./references/contracts.md) before creating or changing session/build/helper interfaces.
-3. Open the edit helper and run a build script against the embedded report object.
-4. Open the view helper and validate the report visually in headed Playwright.
-5. Repeat until the report is clean.
-6. Export the finished report artifact.
+3. Read [design.md](./design.md) and use it as the editable visual standard for dashboard layout, spacing, slicers, KPI treatment, and QA expectations.
+4. Open the edit helper and run a build script against the embedded report object.
+5. Open the view helper and validate the report visually in headed Playwright against the design guide, not just for technical correctness.
+6. Repeat until the report is clean.
+7. Export the finished report artifact.
 
 ## Runtime commands
 
@@ -86,3 +88,4 @@ The companion bundle includes a starter example at `powerbi-embedded-authoring-c
 - Session config, helper globals, and build script contract: [references/contracts.md](./references/contracts.md)
 - Embedded-authoring limits and gotchas: [references/limitations.md](./references/limitations.md)
 - The exact iteration loop for QA and refinement: [references/test-loop.md](./references/test-loop.md)
+- Editable dashboard design standard: [design.md](./design.md)

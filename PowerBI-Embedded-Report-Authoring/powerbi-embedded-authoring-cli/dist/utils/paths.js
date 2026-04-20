@@ -30,4 +30,10 @@ export async function syncHelperAssets(paths) {
         recursive: true,
         force: true
     });
+    await cp(path.join(paths.packageRoot, "node_modules", "powerbi-client", "dist", "powerbi.min.js"), path.join(paths.runtimeRoot, "vendor", "powerbi-client", "powerbi.min.js"), {
+        force: true
+    });
+    await cp(path.join(paths.packageRoot, "node_modules", "powerbi-report-authoring", "dist", "powerbi-report-authoring.js"), path.join(paths.runtimeRoot, "vendor", "powerbi-report-authoring", "powerbi-report-authoring.js"), {
+        force: true
+    });
 }

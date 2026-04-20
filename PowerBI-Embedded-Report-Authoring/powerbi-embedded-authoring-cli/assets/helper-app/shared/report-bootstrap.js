@@ -84,6 +84,27 @@
     }
   }
 
+  async function clearAllPagesExcept(report, keepDisplayNames) {
+    const keep = new Set(Array.isArray(keepDisplayNames) ? keepDisplayNames : [keepDisplayNames]);
+    const pages = await report.getPages();
+    const removed = [];
+    for (const p of pages) {
+      if (keep.has(p.displayName)) {
+        continue;
+      }
+      if (typeof report.deletePage !== "function") {
+        continue;
+      }
+      try {
+        await report.deletePage(p.name);
+        removed.push(p.displayName);
+      } catch (error) {
+        console.warn("Unable to delete page.", p.displayName, error);
+      }
+    }
+    return removed;
+  }
+
   async function showVisual(page, visual) {
     if (typeof page.setVisualDisplayState === "function") {
       try {
@@ -157,6 +178,72 @@
     setStatus("Embedding report…");
     const report = powerbi.embed(CONTAINER, embedConfig);
 
+    const buildStats = {
+      visualsCreated: 0,
+      propertyWarnings: new Map(),
+      buildStartedAt: null,
+      buildFinishedAt: null
+    };
+
+    async function safeSetProperty(visual, selector, value) {
+      try {
+        await visual.setProperty(selector, property(value));
+        return true;
+      } catch (error) {
+        const key = (selector.objectName || "?") + "." + (selector.propertyName || "?");
+        const count = buildStats.propertyWarnings.get(key) || 0;
+        buildStats.propertyWarnings.set(key, count + 1);
+        if (count === 0) {
+          console.warn(
+            "safeSetProperty unsupported:",
+            key,
+            error && error.message ? error.message : error
+          );
+        }
+        return false;
+      }
+    }
+
+    async function createVisualTracked(page, visualType, layout, bind, format) {
+      const response = await page.createVisual(visualType, layout, false);
+      const visual = response.visual;
+      await showVisual(page, visual);
+      if (format) {
+        await format(visual);
+      }
+      if (bind) {
+        await bind(visual);
+      }
+      buildStats.visualsCreated += 1;
+      return visual;
+    }
+
+    function startBuild() {
+      buildStats.visualsCreated = 0;
+      buildStats.propertyWarnings = new Map();
+      buildStats.buildStartedAt = new Date().toISOString();
+      buildStats.buildFinishedAt = null;
+    }
+
+    function finishBuild() {
+      buildStats.buildFinishedAt = new Date().toISOString();
+    }
+
+    function buildSummary() {
+      const warnings = [];
+      for (const [selector, count] of buildStats.propertyWarnings.entries()) {
+        warnings.push({ selector, count });
+      }
+      return {
+        visualsCreated: buildStats.visualsCreated,
+        propertyWarnings: warnings,
+        propertyWarningsTotal: warnings.reduce((sum, w) => sum + w.count, 0),
+        buildStartedAt: buildStats.buildStartedAt,
+        buildFinishedAt: buildStats.buildFinishedAt,
+        lastSaveAt: status.lastSaveAt
+      };
+    }
+
     const api = {
       report,
       powerbi,
@@ -165,6 +252,10 @@
       status,
       errors: status.errors,
       lastSaveAt: null,
+      buildStats,
+      startBuild,
+      finishBuild,
+      buildSummary,
       helpers: {
         waitForReady,
         property,
@@ -174,7 +265,10 @@
         addFirstMatchingRole,
         findPageByDisplayName,
         clearPage,
-        showVisual
+        clearAllPagesExcept,
+        showVisual,
+        safeSetProperty,
+        createVisualTracked
       }
     };
 
